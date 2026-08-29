@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+
+data/raw/*
+!data/raw/.gitkeep
+
+data/processed/*
+!data/processed/.gitkeep
+src/*.egg-info/
+*.egg-info/
+powerbi/exports/*
+!powerbi/exports/.gitkeep

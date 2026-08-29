@@ -1,0 +1,4 @@
+store_nbr,city,state,type,cluster
+1,Demo North,Demo,A,1
+2,Demo Central,Demo,B,1
+3,Demo South,Demo,A,2
