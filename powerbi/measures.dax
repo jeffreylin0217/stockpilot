@@ -1,0 +1,105 @@
+// StockPilot measure definitions, not a runnable DAX query or a report file.
+// In Desktop: select daily_sales, Modeling > New measure; paste ONE definition at a time.
+// Keep the CSV table names exactly as shown. Create measures in order.
+// Import dates as Date, promoted as True/False, and metrics as numbers first.
+// DAX has not been executed in Desktop here; complete the build guide's manual checks.
+
+// Historical demand: these measures respond to DimDate, DimStore and DimFamily.
+Total Demand = SUM ( daily_sales[sales] )
+
+// Count observed fact dates, not the entire calendar or number of store/family rows.
+Observed Days = DISTINCTCOUNT ( daily_sales[date] )
+
+Average Daily Demand = DIVIDE ( [Total Demand], [Observed Days] )
+
+// Optional familiar alias: sales is still volume, never currency.
+Average Daily Sales = [Average Daily Demand]
+
+// Fact-side counts reflect which stores/families actually have rows in the selected period.
+Store Count = DISTINCTCOUNT ( daily_sales[store_nbr] )
+
+Product Family Count = DISTINCTCOUNT ( daily_sales[family] )
+
+// COUNT skips missing promotion values; do not equate unknown promotion with no promotion.
+Known Promotion Rows = COUNT ( daily_sales[onpromotion] )
+
+// KEEPFILTERS intersects any existing promotion selection instead of replacing it.
+// The optional source can omit promotion entirely; preserve BLANK in that case.
+Promoted Demand =
+IF (
+    [Known Promotion Rows] > 0,
+    CALCULATE ( [Total Demand], KEEPFILTERS ( daily_sales[promoted] == TRUE () ) ),
+    BLANK ()
+)
+
+// This is the share of volume on promotion-associated rows, not incremental causal sales.
+Promotion Share = DIVIDE ( [Promoted Demand], [Total Demand] )
+
+Promoted Row Count =
+CALCULATE ( COUNTROWS ( daily_sales ), KEEPFILTERS ( daily_sales[promoted] == TRUE () ) )
+
+Nonpromoted Row Count =
+CALCULATE ( COUNTROWS ( daily_sales ), KEEPFILTERS ( daily_sales[promoted] == FALSE () ) )
+
+// These averages are per store/family/day ROW. They are not average daily chain totals.
+Average Promoted Row Demand =
+CALCULATE ( AVERAGE ( daily_sales[sales] ), KEEPFILTERS ( daily_sales[promoted] == TRUE () ) )
+
+Average Nonpromoted Row Demand =
+CALCULATE ( AVERAGE ( daily_sales[sales] ), KEEPFILTERS ( daily_sales[promoted] == FALSE () ) )
+
+// Return BLANK if either comparison group is absent or the nonpromoted mean is zero.
+// This measure is a fraction: format as Percentage. Do not multiply it by 100 again.
+Promotion Lift =
+IF (
+    ISBLANK ( [Average Promoted Row Demand] ) || ISBLANK ( [Average Nonpromoted Row Demand] ),
+    BLANK (),
+    DIVIDE (
+        [Average Promoted Row Demand] - [Average Nonpromoted Row Demand],
+        [Average Nonpromoted Row Demand]
+    )
+)
+
+// Optional descriptive snapshot card. demand_volatility has NO relationships.
+// Equal-weight average of full-run family-level daily standard deviations.
+// NOT the portfolio's standard deviation and NOT responsive to history/store/family slicers.
+Average Demand Volatility (Full Run) = AVERAGE ( demand_volatility[daily_std] )
+
+// Planning: DimStore/DimFamily apply, DimDate DOES NOT. These summarize a stored snapshot.
+// AVERAGE ignores BLANK days_of_supply (e.g. zero mean demand). Show coverage in the table.
+Average Days of Supply = AVERAGE ( reorder_risk[days_of_supply] )
+
+Average Reorder Point = AVERAGE ( reorder_risk[reorder_point] )
+
+Planning Series Count = COUNTROWS ( reorder_risk )
+
+Reorder Now Count =
+COALESCE ( CALCULATE ( COUNTROWS ( reorder_risk ), KEEPFILTERS ( reorder_risk[risk] = "Reorder now" ) ), 0 )
+
+Monitor Count =
+COALESCE ( CALCULATE ( COUNTROWS ( reorder_risk ), KEEPFILTERS ( reorder_risk[risk] = "Monitor" ) ), 0 )
+
+Healthy Count =
+COALESCE ( CALCULATE ( COUNTROWS ( reorder_risk ), KEEPFILTERS ( reorder_risk[risk] = "Healthy" ) ), 0 )
+
+Overstock Risk Count =
+COALESCE ( CALCULATE ( COUNTROWS ( reorder_risk ), KEEPFILTERS ( reorder_risk[risk] = "Overstock risk" ) ), 0 )
+
+Insufficient History Count =
+COALESCE ( CALCULATE ( COUNTROWS ( reorder_risk ), KEEPFILTERS ( reorder_risk[risk] = "Insufficient history" ) ), 0 )
+
+// Attention means Reorder now, Monitor or Overstock risk. Missing history is a separate QA issue.
+Series Requiring Attention = [Reorder Now Count] + [Monitor Count] + [Overstock Risk Count]
+
+// Includes all nonblank scenario quantities, even Healthy/Monitor rows below target stock.
+// Mixed family volumes are not a purchase order. Prefer per-family context; show blanks in detail.
+Total Recommended Reorder Quantity = SUM ( reorder_risk[reorder_quantity] )
+
+Snapshot As Of = MAX ( reorder_risk[forecast_date] )
+
+// Disconnected quality table: these text labels show the complete pipeline run.
+Data Source Label =
+LOOKUPVALUE ( quality_summary[value], quality_summary[check], "data_label" )
+
+Planning Assumptions =
+LOOKUPVALUE ( quality_summary[value], quality_summary[check], "planning" )
