@@ -84,8 +84,8 @@ def write_processed_outputs(processed: Path) -> None:
 
     pd.DataFrame(
         {
-            "store_nbr": [1],
-            "family": ["A"],
+            "scope": ["Store 1 / A"],
+            "evidence": ["Simulated inventory below reorder point"],
             "recommendation": ["Review replenishment"],
         }
     ).to_csv(processed / "recommendations.csv", index=False)
@@ -151,3 +151,106 @@ def test_overview_kpis_use_demand_volume(tmp_path, monkeypatch):
 
     assert "Total revenue" not in values
     assert "Total units sold" not in values
+
+
+def _export_real_sample(tmp_path, monkeypatch):
+    from stockpilot.pipeline import run_pipeline
+
+    processed, exports = tmp_path / "processed", tmp_path / "exports"
+    report = run_pipeline("sample", output_dir=processed)
+    monkeypatch.setattr(powerbi_export, "PROCESSED_DIR", processed)
+    monkeypatch.setattr(powerbi_export, "EXPORT_DIR", exports)
+    paths = powerbi_export.export_all()
+    return {p.stem: pd.read_csv(p) for p in paths}, report
+
+
+def test_real_pipeline_exports_have_model_keys_and_valid_numbers(tmp_path, monkeypatch):
+    """Check actual pipeline files, not only hand-authored export fixtures."""
+    import numpy as np
+
+    tables, _ = _export_real_sample(tmp_path, monkeypatch)
+    expected = {
+        "daily_sales": {"date", "store_nbr", "family", "sales", "onpromotion", "promoted", "weekday_number", "day_type"},
+        "weekly_sales": {"week", "store_nbr", "family", "sales", "observed_days"},
+        "store_performance": {"store_nbr", "total_sales", "observed_days", "average_daily_sales"},
+        "family_performance": {"family", "total_sales", "observed_days"},
+        "promotion_impact": {"family", "promoted_average", "nonpromoted_average", "promoted_rows", "nonpromoted_rows", "lift_pct"},
+        "demand_volatility": {"family", "daily_mean", "daily_std", "coefficient_of_variation"},
+        "reorder_risk": {"store_nbr", "family", "recent_average", "demand_std", "observed_days", "last_observed_date", "coverage", "forecast_date", "expected_lead_time_demand", "forecast_quality", "safety_stock", "reorder_point", "target_stock_level", "inventory_on_hand", "inventory_source", "days_of_supply", "reorder_quantity", "risk"},
+        "recommendations": {"scope", "evidence", "recommendation"},
+        "overview_kpis": {"metric", "value"},
+        "quality_summary": {"check", "value"},
+    }
+    assert set(tables) == set(expected)
+    for name, columns in expected.items():
+        assert columns.issubset(tables[name].columns), name
+        assert not tables[name].empty, name  # This particular demo produces recommendations.
+    for name, keys in {"daily_sales": ["date", "store_nbr", "family"],
+                       "weekly_sales": ["week", "store_nbr", "family"],
+                       "reorder_risk": ["store_nbr", "family"],
+                       "store_performance": ["store_nbr"], "family_performance": ["family"],
+                       "quality_summary": ["check"], "overview_kpis": ["metric"]}.items():
+        assert not tables[name][keys].isna().any().any()
+        assert not tables[name].duplicated(keys).any(), name
+    for name, columns in {"daily_sales": ["sales", "onpromotion"],
+                          "reorder_risk": ["recent_average", "demand_std", "coverage", "safety_stock", "reorder_point", "target_stock_level", "inventory_on_hand", "days_of_supply", "reorder_quantity"]}.items():
+        values = tables[name][columns].apply(pd.to_numeric, errors="raise")
+        assert values.notna().all().all()  # Demo has complete histories and positive means.
+        assert np.isfinite(values.to_numpy()).all()
+        assert values.ge(0).all().all()
+    assert tables["reorder_risk"].coverage.le(1).all()
+    assert pd.to_datetime(tables["daily_sales"].date, errors="raise").notna().all()
+    assert set(tables["reorder_risk"].store_nbr) <= set(tables["daily_sales"].store_nbr)
+    assert set(tables["reorder_risk"].family) <= set(tables["daily_sales"].family)
+
+
+def test_reporting_totals_and_promotion_groups_reconcile(tmp_path, monkeypatch):
+    import pytest
+
+    tables, report = _export_real_sample(tmp_path, monkeypatch)
+    daily = tables["daily_sales"]
+    total = daily.sales.sum()
+    assert total == pytest.approx(report["kpis"]["total_sales"])
+    for name, column in [("weekly_sales", "sales"), ("family_performance", "total_sales"), ("store_performance", "total_sales")]:
+        assert tables[name][column].sum() == pytest.approx(total)
+    # Verify the whole period and a specific dimension member, avoiding sum-only false positives.
+    for r in tables["store_performance"].itertuples():
+        part = daily[daily.store_nbr.eq(r.store_nbr)]
+        assert r.total_sales == pytest.approx(part.sales.sum())
+        assert r.average_daily_sales == pytest.approx(part.sales.sum()/part.date.nunique())
+    for r in tables["promotion_impact"].itertuples():
+        part = daily[daily.family.eq(r.family)]
+        promoted = part.loc[part.onpromotion.gt(0), "sales"]
+        baseline = part.loc[part.onpromotion.eq(0), "sales"]
+        assert r.promoted_rows == len(promoted)
+        assert r.nonpromoted_rows == len(baseline)
+        assert r.lift_pct == pytest.approx(100*(promoted.mean()/baseline.mean()-1))
+    overview = tables["overview_kpis"].set_index("metric").value
+    assert overview["Total demand volume"] == pytest.approx(total, abs=0.005)
+    assert overview["Reorder now series"] == tables["reorder_risk"].risk.eq("Reorder now").sum()
+    quality = tables["quality_summary"].set_index("check").value
+    assert quality["data_label"] == "Synthetic demo data"
+    assert int(quality["rows"]) == len(daily)
+    assert json.loads(quality["planning"]) == report["planning"]
+
+
+def test_exports_preserve_unknown_promotion_and_incomplete_planning(tmp_path, monkeypatch, sales):
+    """Blank comparison/quantity values must not become misleading zero metrics."""
+    from stockpilot.pipeline import run_pipeline
+
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    sales.drop(columns="onpromotion").to_csv(raw / "train.csv", index=False)
+    processed, exports = tmp_path / "processed", tmp_path / "exports"
+    run_pipeline("raw", data_dir=tmp_path, output_dir=processed)
+    monkeypatch.setattr(powerbi_export, "PROCESSED_DIR", processed)
+    monkeypatch.setattr(powerbi_export, "EXPORT_DIR", exports)
+    powerbi_export.export_all()
+    daily = pd.read_csv(exports / "daily_sales.csv")
+    promotion = pd.read_csv(exports / "promotion_impact.csv")
+    plan = pd.read_csv(exports / "reorder_risk.csv")
+    assert daily.onpromotion.isna().all() and daily.promoted.isna().all()
+    assert promotion.lift_pct.isna().all()
+    assert promotion.promoted_average.isna().all() and promotion.nonpromoted_average.isna().all()
+    assert plan.risk.eq("Insufficient history").all()
+    assert plan.reorder_quantity.isna().all()

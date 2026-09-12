@@ -1,10 +1,10 @@
-# Build the real StockPilot report in Power BI Desktop
+# Build the StockPilot report in Power BI Desktop
 
 **Status: manual build specification. No PBIX or PBIT has been created.** DAX and visual behavior must be checked in Desktop before claiming a completed report. This guide uses only exported columns inspected in the current sample run.
 
 ## 1. Prepare the files and Desktop
 
-Power BI Desktop is a Windows application. On this Mac, generate the CSVs here, then use a Windows computer or Windows environment with Desktop installed. Copy the project exports to that environment. No paid service publishing or scheduled refresh is required for this local portfolio report. See Microsoft's [Desktop installation requirements](https://learn.microsoft.com/en-us/power-bi/fundamentals/desktop-get-the-desktop).
+Power BI Desktop is a Windows application. On macOS, generate the CSVs here, then use a Windows computer or Windows environment with Desktop installed. Copy the project exports to that environment. No paid service publishing or scheduled refresh is required for this local report. See Microsoft's [Desktop installation requirements](https://learn.microsoft.com/en-us/power-bi/fundamentals/desktop-get-the-desktop).
 
 From the StockPilot project root, with its Python environment active:
 
@@ -14,7 +14,7 @@ python scripts/export_powerbi.py
 pytest -q
 ```
 
-Confirm all ten CSVs exist in `powerbi/exports/`. Keep that directory in one stable location on Windows. The sample source should say `Synthetic demo data`; demand is volume, not money. Do not use the discontinued localhost link to open this report.
+Confirm all ten CSVs exist in `powerbi/exports/`. Keep that directory in one stable location on Windows. The sample source should say `Synthetic demo data`; demand is volume, not money.
 
 1. Open Desktop → **Blank report**.
 2. **Home → Get data → Text/CSV** → select `daily_sales.csv` → **Transform Data**.
@@ -67,13 +67,13 @@ Open [measures.dax](measures.dax). Select daily_sales as the home table, then **
 
 The exported `promotion_impact[lift_pct]` is already in percentage points. For an optional reference table use a decimal number with a `%` literal/custom format such as `0.00"%"`, or label it `Lift (%)`; do not apply the normal Percentage format. Do not average this column across families.
 
-Core calculations remain in Python/SQL. The small dynamic promotion averages in DAX are necessary to support arbitrary date/store/family selections; they intentionally match the upstream comparison definition. Review [CALCULATE](https://learn.microsoft.com/en-us/dax/calculate-function-dax) and [KEEPFILTERS](https://learn.microsoft.com/en-us/dax/keepfilters-function-dax) to explain how selections intersect.
+Core calculations remain in Python/SQL. The small dynamic promotion averages in DAX are necessary to support arbitrary date/store/family selections; they intentionally match the upstream comparison definition. See [CALCULATE](https://learn.microsoft.com/en-us/dax/calculate-function-dax) and [KEEPFILTERS](https://learn.microsoft.com/en-us/dax/keepfilters-function-dax) for how selections intersect.
 
 ## 4. Layout rules shared by all pages
 
 Use a 16:9 canvas, a light background, dark readable text, and one blue accent for demand. Reserve red/amber for risk; pair color with text labels. Use page titles around 22–26 pt, labels around 11–12 pt, and 3–4 cards in a top row. Use two main charts below and a table only where it adds detail. Use standard visuals; no custom downloads or decorative scoring.
 
-Add a small **Data Source Label** card and a text footer reading `Synthetic demo demand • Simulated inventory scenarios • Personal portfolio project` on every page for the sample build. Update the footer only after actually loading another source; keep the dynamic source card. Never title demand as revenue or use a pound/dollar symbol.
+Add a small **Data Source Label** card and a text footer reading `Synthetic demo demand • Simulated inventory scenarios • Demonstration dataset` on every page for the sample build. Update the footer only after actually loading another source; keep the dynamic source card. Never title demand as revenue or use a pound/dollar symbol.
 
 Use dimension fields for slicers. Sync DimDate, DimStore and DimFamily only across pages 1–4. Do not synchronize historical dates to page 5, including hidden slicers. Pages 6–7 use only their own standalone-table filters. Do not add report-level date/store/family filters that silently affect other pages. Set **Format → Edit interactions** so charts on pages 1–4 filter companion charts; inspect the resulting cards. Turn off interactions with any explicitly full-run reference visual if needed (the disconnected model already prevents fact filtering).
 
@@ -170,11 +170,11 @@ Use dimension fields for slicers. Sync DimDate, DimStore and DimFamily only acro
 - **Slicer:** quality_summary[check] only, optional. No date/store/family slicers.
 - **Text box:** explain synthetic data, volume not revenue, store/family/day grain, simulated inventory, assumed lead time and safety stock, descriptive promotions, unvalidated forecast baseline, and no real users or measured company outcomes.
 - **Interpretation:** lets a reviewer trace scope and decide what evidence is sufficient for the analysis.
-- **Caveat:** these are run metadata and outputs, not continuous monitoring or forecast confidence. No fabricated “all checks passed” badge: show the actual warnings and audit results.
+- **Caveat:** these are run metadata and outputs, not continuous monitoring or forecast confidence. Show the actual warnings and audit results rather than a generic status badge.
 
-## 5. Manual acceptance checks before saying the report is built
+## 5. Manual acceptance checks before marking the report complete
 
-Complete and record these in your own real report. The Python checks alone do not satisfy them.
+Complete and record these checks in the finished report. The Python checks alone do not satisfy them.
 
 1. **No filters, sample source:** Total Demand = 176,589.03; Average Daily Demand = 1,471.57525; Store Count = 3; Product Family Count = 4; Observed Days = 120; Promoted Demand = 44,173.11. Promotion Share ≈ 25.0146%. Historical dates are 2024-01-01 through 2024-04-29.
 2. **Filter store 1:** Total Demand = 48,120.10 and Store Count = 1. Clear the filter, then select family GROCERY: Total Demand = 82,806.29 and Product Family Count = 1.
@@ -184,8 +184,8 @@ Complete and record these in your own real report. The Python checks alone do no
 6. **Blank/edge behavior:** test a day/store/family with only one promotion group; lift must be blank. With a deliberately separate missing-promotion test source, Promoted Demand/lift must be unavailable, not invented values. Do not overwrite the normal sample exports for this optional test without regenerating afterward.
 7. **Interactions:** test a bar selection, Clear selections, and synced slicers. Verify full-run reference tables and recommendation text remain labeled as such. Inspect Model view to confirm only five relationships, all Single.
 8. **Refresh:** regenerate both pipeline and exports, press Home → Refresh, and recheck source/as-of and headline totals. Close and reopen the saved PBIX to confirm visuals and relationships persist. Copying a PBIX to another computer may require updating each CSV location under Data source settings → Change Source.
-9. **Save real evidence:** File → Save As → `powerbi/StockPilot.pbix` within the project copy on your Windows machine. Copy that file back to the repository if needed. Capture your own actual report pages and Model view into `powerbi/screenshots/`. Do not add invented images. The PBIX and screenshots are not ignored by the project rules.
-10. **Update claims only afterward:** change README's PBIX status, record the manual checks you actually completed in docs/AUDIT.md, and use the conditional resume version. Do not claim an existing report merely because you opened Desktop or wrote DAX.
+9. **Save verified report evidence:** File → Save As → `powerbi/StockPilot.pbix` within the project copy on your Windows machine. Copy that file back to the repository if needed. Capture the completed report pages and Model view into `powerbi/screenshots/`. The PBIX and screenshots are not ignored by the project rules.
+10. **Update documentation only afterward:** change the README PBIX status and record the manual checks actually completed in docs/AUDIT.md. Mark the report as completed after the saved artifact and manual acceptance checks have been verified.
 
 ## 6. Refresh workflow and future production changes
 

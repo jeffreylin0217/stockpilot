@@ -1,6 +1,6 @@
 # Power BI reporting layer
 
-**Delivered:** ten CSV reporting datasets, a documented model, commented DAX measures, and a seven-page manual report specification. **Not delivered:** a PBIX/PBIT, an executed Desktop semantic model, or screenshots. Power BI is the intended business-facing reporting layer; Jeffrey will build and verify the actual report in Desktop.
+**Delivered:** ten CSV reporting datasets, a documented model, commented DAX measures, and a seven-page manual report specification. **Not delivered:** a PBIX/PBIT, an executed Desktop semantic model, or screenshots. Power BI is the intended business-facing reporting layer; the report must still be built and verified in Power BI Desktop.
 
 ## Build in this order
 1. Regenerate the exports from the project root:
@@ -12,7 +12,7 @@
 2. Read [DATA_MODEL.md](DATA_MODEL.md) for every export's grain, column types and the five relationships.
 3. Follow [REPORT_BUILD_GUIDE.md](REPORT_BUILD_GUIDE.md) to import CSVs, create lookups and build the pages.
 4. Add the definitions in [measures.dax](measures.dax), one measure at a time. They require manual compilation and validation in Desktop.
-5. Save the actual report as `powerbi/StockPilot.pbix`. Add only your own real captures to `powerbi/screenshots/`. Both are trackable; generated `exports/` files stay ignored.
+5. Save the actual report as `powerbi/StockPilot.pbix`. Add only captures generated from the completed report to `powerbi/screenshots/`. Both are trackable; generated `exports/` files stay ignored.
 
 ## Reporting datasets
 | Dataset | Intended role |

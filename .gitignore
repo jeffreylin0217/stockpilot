@@ -13,3 +13,9 @@ src/*.egg-info/
 *.egg-info/
 powerbi/exports/*
 !powerbi/exports/.gitkeep
+
+# Future real report artifacts and screenshots must remain trackable.
+!powerbi/*.pbix
+!powerbi/*.pbit
+!powerbi/screenshots/
+!powerbi/screenshots/**

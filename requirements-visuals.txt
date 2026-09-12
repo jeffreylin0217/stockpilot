@@ -1,0 +1,3 @@
+-r requirements.txt
+# Optional: only needed to regenerate the README's analytical preview.
+matplotlib>=3.8,<4
