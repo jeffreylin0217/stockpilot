@@ -1,6 +1,6 @@
 # StockPilot Power BI data model
 
-**Current artifact status:** reporting CSVs, a model specification, DAX definitions and build instructions exist. No PBIX/PBIT or screenshots are present. This document specifies the model Jeffrey will build; it does not claim an implemented Power BI semantic model.
+**Current artifact status:** reporting CSVs, a model specification, DAX definitions and build instructions exist. No PBIX/PBIT or screenshots are present. This document specifies the model The report can be built; it does not claim an implemented Power BI semantic model.
 
 ## Model choice
 Use `daily_sales` as the primary historical fact. Its grain is **one date × store_nbr × family**. Create three small lookups inside Power BI: `DimStore`, `DimFamily`, `DimDate`. Connect the first two to both the historical fact and the separate `reorder_risk` snapshot. Only the historical fact gets a date relationship.

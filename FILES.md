@@ -1,6 +1,6 @@
-# Repository file inventory
+# Exact deliverable file inventory
 
-Tracked source, test and documentation files:
+Paths are relative to the StockPilot project root.
 
 ```text
 .gitignore
@@ -11,12 +11,13 @@ data/sample/stores.csv
 data/sample/train.csv
 docs/ARCHITECTURE.md
 docs/AUDIT.md
-docs/INTERVIEW_GUIDE.md
-docs/LEARNING_GUIDE.md
-docs/RESUME_GUIDE.md
 FILES.md
+powerbi/DATA_MODEL.md
 powerbi/exports/.gitkeep
+powerbi/measures.dax
 powerbi/README.md
+powerbi/REPORT_BUILD_GUIDE.md
+powerbi/screenshots/.gitkeep
 pyproject.toml
 README.md
 requirements.txt
@@ -42,4 +43,4 @@ tests/test_powerbi_exports.py
 tests/test_validation.py
 ```
 
-Generated outputs under `data/processed/` and `powerbi/exports/` are intentionally ignored because they can be recreated.
+Generated files under `data/processed/` and `powerbi/exports/` are intentionally ignored except for `.gitkeep`.
